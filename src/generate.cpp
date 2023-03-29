@@ -134,8 +134,8 @@ int main(int argc, char* argv[]) {
   if (Custom::runtimeMode == "release") {
     tailStmt stoplogging();
     Coverage::save();
-    File::ifile.close();
-    File::ofile.close();
+    File::inRelayFile.close();
+    File::outRelayFile.close();
     File::icsv.close();
     File::ocsv.close();
   }

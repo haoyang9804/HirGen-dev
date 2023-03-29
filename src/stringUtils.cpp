@@ -8,6 +8,8 @@
 #include <random>
 #include <stringUtils.hpp>
 
+using namespace File;
+
 bool _equalShape(NODE_PTR lhs, NODE_PTR rhs) {
   if (lhs->shape_().size() != rhs->shape_().size()) return false;
   for (int i = 0; i < lhs->shape_().size(); i++) {
@@ -29,20 +31,20 @@ bool _equalShape(NODE_PTR lhs, NODE_PTR rhs) {
     else                                                                                          \
       stat = nd->name_() + " = relay." + #bopname + "(" + lhs->name_() + ".astype(\'" +           \
              nd->dataType_() + "\'), " + rhs->name_() + ".astype(\'" + nd->dataType_() + "\'))";  \
-    File::ofile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
   } else {                                                                                        \
     stat = nd->name_() + " = relay." + #bopname + "(" + lhs->name_() + ", " + rhs->name_() + ")"; \
-    File::ofile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
   }
 
 #define unaryOpRelayStmt(uopname)                                                                 \
   if (Custom::cLevel == strict) {                                                                    \
     std::string stat = nd->name_() + " = relay." + #uopname + "(" + pnd->name_() + ".astype(\'" + \
                        nd->dataType_() + "\'))";                                                  \
-    File::ofile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
   } else {                                                                                        \
     std::string stat = nd->name_() + " = relay." + #uopname + "(" + pnd->name_() + ")";           \
-    File::ofile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
   }
 
 std::string SHAPE_to_string(SHAPE shape, std::string beginstr, std::string endstr) {
@@ -61,7 +63,7 @@ std::string SHAPE_to_string(SHAPE shape, std::string beginstr, std::string endst
 }
 
 void generateStmt(std::string stat, NODE_PTR nd) {
-  File::ofile << stat << " # shape is " << SHAPE_to_string(nd->shape_(), "(", ")")
+  outRelayFile << stat << " # shape is " << SHAPE_to_string(nd->shape_(), "(", ")")
               << " # data type is " << nd->dataType_() << std::endl;
 }
 
@@ -75,11 +77,11 @@ void node_RelayStmt(NODE_PTR nd) {
     std::string stat = nd->name_() + " = " + "relay.var(\"" + nd->name_() + "\", dtype = \"" +
                        nd->dataType_() + "\", shape = " + SHAPE_to_string(nd->shape_(), "(", ")") +
                        ")";
-    File::ofile << stat << info() << std::endl;
+    outRelayFile << stat << info() << std::endl;
   } else if (nd->isConst()) {
     std::string stat = nd->name_() + " = " + "relay.const(" + nd->const_value_() + ", dtype = \"" +
                        nd->dataType_() + "\")";
-    File::ofile << stat << info() << std::endl;
+    outRelayFile << stat << info() << std::endl;
   } else {
     throw std::logic_error("stringUtils.cpp -> node_RelayStmt -> nd has unexpected type");
   }
@@ -168,15 +170,121 @@ void logicalNot_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(logical_
 void reshape_RelayStmt(NODE_PTR nd, NODE_PTR pnd) {
   std::string stat = nd->name_() + " = relay.reshape(" + pnd->name_() + ".astype(\'" +
                      nd->dataType_() + "\')," + SHAPE_to_string(nd->shape_(), "[", "]") + ")";
-  File::ofile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;
+  outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;
+}
+
+void node_ONNXStmt(NODE_PTR nd) {
+  auto info = [nd]() {
+    return "#candidate|" + std::to_string(nd->ID_()) + "|" +
+           SHAPE_to_string(nd->shape_(), "(", ")") + "|" + nd->nodeType_() + "|" + nd->dataType_();
+  };
+
+  if (nd->isVar()) {
+    std::string stat = nd->name_() + " = " + "ONNX.var(\"" + nd->name_() + "\", dtype = \"" +
+                       nd->dataType_() + "\", shape = " + SHAPE_to_string(nd->shape_(), "(", ")") +
+                       ")";
+    outONNXFile << stat << info() << std::endl;
+  } else if (nd->isConst()) {
+    std::string stat = nd->name_() + " = " + "ONNX.const(" + nd->const_value_() + ", dtype = \"" +
+                       nd->dataType_() + "\")";
+    outONNXFile << stat << info() << std::endl;
+  } else {
+    throw std::logic_error("stringUtils.cpp -> node_ONNXStmt -> nd has unexpected type");
+  }
+}
+
+void floorDivide_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(floor_divide)
+}
+void floorMod_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(floor_mod) }
+void bitwiseAnd_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(bitwise_and)
+}
+void bitwiseOr_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(bitwise_or) }
+void bitwiseXor_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(bitwise_xor)
+}
+void notEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(not_equal) }
+void rightShift_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(right_shift)
+}
+void leftShift_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(left_shift) }
+
+void add_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(add) }
+void subtract_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(subtract) }
+void multiply_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(multiply) }
+void divide_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(divide) }
+void power_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(power) }
+void mod_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(mod) }
+void logicalAnd_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(logical_and)
+}
+void logicalOr_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(logical_or) }
+void logicalXor_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(logical_xor)
+}
+void equal_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(equal) }
+void less_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(less) }
+void lessEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(less_equal) }
+void greater_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(greater) }
+void greaterEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(greater_equal)
+}
+void maximum_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(maximum) }
+void minimum_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(minimum) }
+
+void log2_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log2) }
+void log10_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log10) }
+void fastExp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_exp) }
+void fastErf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_erf) }
+void rsqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(rsqrt) }
+void trunc_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(trunc) }
+void fastTanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_tanh) }
+void bitwiseNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(bitwise_not) }
+void zerosLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(zeros_like) }
+void onesLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(ones_like) }
+void copy_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(copy) }
+void isnan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isnan) }
+void isfinite_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isfinite) }
+void isinf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isinf) }
+
+void log_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log) }
+void tan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(tan) }
+void cos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(cos) }
+void cosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(cosh) }
+void sin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sin) }
+void sinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sinh) }
+void acos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(acos) }
+void acosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(acosh) }
+void asin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(asin) }
+void asinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(asinh) }
+void atan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(atan) }
+void atanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(atanh) }
+void exp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(exp) }
+void erf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(erf) }
+void sqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sqrt) }
+void sigmoid_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sigmoid) }
+void floor_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(floor) }
+void ceil_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(ceil) }
+void round_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(round) }
+void abs_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(abs) }
+void sign_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sign) }
+void tanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(tanh) }
+void negative_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(negative) }
+void logicalNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(logical_not) }
+
+void reshape_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) {
+  std::string stat = nd->name_() + " = ONNX.reshape(" + pnd->name_() + ".astype(\'" +
+                     nd->dataType_() + "\')," + SHAPE_to_string(nd->shape_(), "[", "]") + ")";
+  outONNXFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;
 }
 
 void header_RelayStmt() {
-  File::ofile << "import tvm" << std::endl;
-  File::ofile << "from tvm import relay" << std::endl;
-  File::ofile << "from tvm.ir.transform import Sequential" << std::endl;
-  File::ofile << "from tvm.contrib import graph_runtime" << std::endl;
-  File::ofile << "import numpy as np" << std::endl;
+  outRelayFile << "import tvm" << std::endl;
+  outRelayFile << "from tvm import relay" << std::endl;
+  outRelayFile << "from tvm.ir.transform import Sequential" << std::endl;
+  outRelayFile << "from tvm.contrib import graph_runtime" << std::endl;
+  outRelayFile << "import numpy as np" << std::endl;
 
   // add a python function(this is a workaroud)
   if (Custom::feature == "df") {
@@ -191,69 +299,91 @@ void header_RelayStmt() {
     vmobj_to_list += "        return result\n";
     vmobj_to_list += "    else:\n";
     vmobj_to_list += "        return o\n";
-    File::ofile << vmobj_to_list << std::endl;
-    File::ofile << std::endl;
+    outRelayFile << vmobj_to_list << std::endl;
+    outRelayFile << std::endl;
   }
 
-  File::ofile << "mod = tvm.IRModule()" << std::endl;
-  File::ofile << "mutated_mod = tvm.IRModule()" << std::endl;
+  outRelayFile << "mod = tvm.IRModule()" << std::endl;
+  outRelayFile << "mutated_mod = tvm.IRModule()" << std::endl;
+}
+
+void header_ONNXStmt() {
+  outONNXFile << "from onnx import helper" << std::endl;
+  outONNXFile << "from onnx import AttributeProto, TensorProto, GraphProto" << std::endl;
+  outONNXFile << "from tvm import relay" << std::endl;
+  outONNXFile << "import numpy as np" << std::endl;
+  if (Custom::feature == "df") {
+    std::string vmobj_to_list = "";
+    vmobj_to_list += "def vmobj_to_list(o, dtype=\"float32\"):\n";
+    vmobj_to_list += "    if isinstance(o, tvm.nd.NDArray):\n";
+    vmobj_to_list += "        return [o]\n";
+    vmobj_to_list += "    elif isinstance(o, tvm.runtime.container.ADT):\n";
+    vmobj_to_list += "        result = []\n";
+    vmobj_to_list += "        for f in o:\n";
+    vmobj_to_list += "            result.extend(vmobj_to_list(f, dtype))\n";
+    vmobj_to_list += "        return result\n";
+    vmobj_to_list += "    else:\n";
+    vmobj_to_list += "        return o\n";
+    outONNXFile << vmobj_to_list << std::endl;
+    outONNXFile << std::endl;
+  } 
 }
 
 void tail_mod_RelayStmt(std::string inputnames_str) {
   function_RelayStmt("F", inputnames_str, "output");
-  File::ofile << "mod[\'main\'] = F" << std::endl;
-  File::ofile << "mod = relay.transform.InferType()(mod)" << std::endl;
-  File::ofile << "print(\'==========mod==========\')" << std::endl;
-  File::ofile << "print(mod.astext(show_meta_data=False))" << std::endl;
-  File::ofile << "print(\'===================================\')" << std::endl;
+  outRelayFile << "mod[\'main\'] = F" << std::endl;
+  outRelayFile << "mod = relay.transform.InferType()(mod)" << std::endl;
+  outRelayFile << "print(\'==========mod==========\')" << std::endl;
+  outRelayFile << "print(mod.astext(show_meta_data=False))" << std::endl;
+  outRelayFile << "print(\'===================================\')" << std::endl;
 
   function_RelayStmt("F", inputnames_str, "output2");
 
-  File::ofile << "mutated_mod[\'main\'] = F" << std::endl;
-  File::ofile << "mutated_mod = relay.transform.InferType()(mutated_mod)" << std::endl;
-  File::ofile << "print(\'==========mutated_mod==========\')" << std::endl;
-  File::ofile << "print(mutated_mod.astext(show_meta_data=False))" << std::endl;
-  File::ofile << "print(\'===================================\')" << std::endl;
+  outRelayFile << "mutated_mod[\'main\'] = F" << std::endl;
+  outRelayFile << "mutated_mod = relay.transform.InferType()(mutated_mod)" << std::endl;
+  outRelayFile << "print(\'==========mutated_mod==========\')" << std::endl;
+  outRelayFile << "print(mutated_mod.astext(show_meta_data=False))" << std::endl;
+  outRelayFile << "print(\'===================================\')" << std::endl;
 }
 
 void tail_runtime_stmt(std::string modname, int id0, int id1, int id2, int id3,
                        std::string target) {
-  File::ofile << "graph, lib, params = relay.build(" << modname << ", target=\'" << target << "\')"
+  outRelayFile << "graph, lib, params = relay.build(" << modname << ", target=\'" << target << "\')"
               << std::endl;
-  File::ofile << "module" << id0 << " = graph_runtime.create(graph, lib, tvm.device(\'" << target
+  outRelayFile << "module" << id0 << " = graph_runtime.create(graph, lib, tvm.device(\'" << target
               << "\',0))" << std::endl;
 
-  File::ofile << "intrp" << id1 << " = relay.build_module.create_executor(\'graph\', " << modname
+  outRelayFile << "intrp" << id1 << " = relay.build_module.create_executor(\'graph\', " << modname
               << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
-  File::ofile << "intrp" << id2 << " = relay.build_module.create_executor(\'debug\', " << modname
+  outRelayFile << "intrp" << id2 << " = relay.build_module.create_executor(\'debug\', " << modname
               << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
-  File::ofile << "intrp" << id3 << " = relay.build_module.create_executor(\'vm\', " << modname
+  outRelayFile << "intrp" << id3 << " = relay.build_module.create_executor(\'vm\', " << modname
               << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
 }
 
 void tail_predicateAndOutput_stmt(int id0, int id1, int id2, int id3) {
   size_t outputs_size = OutputNode::size();
   for (size_t i = 0; i < outputs_size; i++) {
-    File::ofile << "res" << id0 << "_" << std::to_string(i) << " = module" << id0 << ".get_output("
+    outRelayFile << "res" << id0 << "_" << std::to_string(i) << " = module" << id0 << ".get_output("
                 << std::to_string(i) << ").asnumpy()" << std::endl;
-    File::ofile << "res" << id1 << "_" << std::to_string(i) << " = res" << id1 << "["
+    outRelayFile << "res" << id1 << "_" << std::to_string(i) << " = res" << id1 << "["
                 << std::to_string(i) << "].asnumpy()" << std::endl;
-    File::ofile << "res" << id2 << "_" << std::to_string(i) << " = res" << id2 << "["
+    outRelayFile << "res" << id2 << "_" << std::to_string(i) << " = res" << id2 << "["
                 << std::to_string(i) << "].asnumpy()" << std::endl;
-    File::ofile << "res" << id3 << "_" << std::to_string(i) << " = res" << id3 << "["
+    outRelayFile << "res" << id3 << "_" << std::to_string(i) << " = res" << id3 << "["
                 << std::to_string(i) << "].asnumpy()" << std::endl;
 
-    File::ofile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
+    outRelayFile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
                 << id1 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
-    File::ofile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
+    outRelayFile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
                 << id2 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
-    File::ofile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
+    outRelayFile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
                 << id3 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
-    File::ofile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id1 << "_"
+    outRelayFile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id1 << "_"
                 << std::to_string(i) << ").all()" << std::endl;
-    File::ofile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id2 << "_"
+    outRelayFile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id2 << "_"
                 << std::to_string(i) << ").all()" << std::endl;
-    File::ofile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id3 << "_"
+    outRelayFile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id3 << "_"
                 << std::to_string(i) << ").all()" << std::endl;
   }
 }
@@ -290,13 +420,13 @@ void tail_optimizations_RelayStmt() {
 
   size_t candidates_num = candidates.size();
   int required_num = rand() % candidates_num + 1;
-  File::ofile << "seq = Sequential([" << std::endl;
+  outRelayFile << "seq = Sequential([" << std::endl;
   for (int i = 0, j = 1; j <= required_num; i++, j++) {
-    File::ofile << "\trelay.transform." + candidates[i] << "," << std::endl;
+    outRelayFile << "\trelay.transform." + candidates[i] << "," << std::endl;
   }
-  File::ofile << "])" << std::endl;
-  File::ofile << "mod = seq(mod)" << std::endl;
-  File::ofile << "print(mod.astext(show_meta_data=False))" << std::endl;
+  outRelayFile << "])" << std::endl;
+  outRelayFile << "mod = seq(mod)" << std::endl;
+  outRelayFile << "print(mod.astext(show_meta_data=False))" << std::endl;
 }
 
 void tail_createOutputAndLoad_stmt(int id0, int id1, int id2, int id3, bool inputYes) {
@@ -308,31 +438,31 @@ void tail_createOutputAndLoad_stmt(int id0, int id1, int id2, int id3, bool inpu
     if (inputYes) {
       std::string&& value = generateValues(
           input_shape, 0, static_cast<int>(input_t->shape_().size()), input_t->dataType_());
-      File::ofile << "input_" << input_t->ID_() << "= np.array(" << value << ", dtype='"
+      outRelayFile << "input_" << input_t->ID_() << "= np.array(" << value << ", dtype='"
                   << input_t->dataType_() << "')" << std::endl;
     }
-    File::ofile << "module" << id0 << ".set_input(\'" << input_t->name_() << "\', input_"
+    outRelayFile << "module" << id0 << ".set_input(\'" << input_t->name_() << "\', input_"
                 << input_t->ID_() << ")" << std::endl;
     inputnames_str += "input_" + std::to_string(input_t->ID_()) + ", ";
   }
 
-  File::ofile << "module" << id0 << ".set_input(**params)" << std::endl;
-  File::ofile << "module" << id0 << ".run()" << std::endl;
+  outRelayFile << "module" << id0 << ".set_input(**params)" << std::endl;
+  outRelayFile << "module" << id0 << ".run()" << std::endl;
   // create_executor : load inputs
-  File::ofile << "res" << id1 << " = intrp" << id1 << ".evaluate()(" << inputnames_str << ")"
+  outRelayFile << "res" << id1 << " = intrp" << id1 << ".evaluate()(" << inputnames_str << ")"
               << std::endl;
-  File::ofile << "res" << id2 << " = intrp" << id2 << ".evaluate()(" << inputnames_str << ")"
+  outRelayFile << "res" << id2 << " = intrp" << id2 << ".evaluate()(" << inputnames_str << ")"
               << std::endl;
-  File::ofile << "res" << id3 << " = intrp" << id3 << ".evaluate()(" << inputnames_str << ")"
+  outRelayFile << "res" << id3 << " = intrp" << id3 << ".evaluate()(" << inputnames_str << ")"
               << std::endl;
 
-  File::ofile << "res" << id1 << " = vmobj_to_list(res" << id1 << ")" << std::endl;
-  File::ofile << "res" << id2 << " = vmobj_to_list(res" << id2 << ")" << std::endl;
-  File::ofile << "res" << id3 << " = vmobj_to_list(res" << id3 << ")" << std::endl;
+  outRelayFile << "res" << id1 << " = vmobj_to_list(res" << id1 << ")" << std::endl;
+  outRelayFile << "res" << id2 << " = vmobj_to_list(res" << id2 << ")" << std::endl;
+  outRelayFile << "res" << id3 << " = vmobj_to_list(res" << id3 << ")" << std::endl;
 }
 
 void function_RelayStmt(std::string funcName, std::string inputNamesStr, std::string outputstr) {
-  File::ofile << funcName + " = relay.Function([" + inputNamesStr + "], " << outputstr << ")"
+  outRelayFile << funcName + " = relay.Function([" + inputNamesStr + "], " << outputstr << ")"
               << std::endl;
 }
 
@@ -373,7 +503,7 @@ void _generateBuildForMutant() {
 
 void generateTail() {
   if (Custom::runtimeMode == "debug") {
-    File::ofile << "# delete until here" << std::endl;
+    outRelayFile << "# delete until here" << std::endl;
   }
   auto [inputnames_str, _] = InputNode::getInputs();
   tail_mod_RelayStmt(inputnames_str);

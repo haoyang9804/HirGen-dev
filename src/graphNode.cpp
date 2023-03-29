@@ -24,8 +24,8 @@ NODE_PTR GNode::tail_tuple_RelayStmt() {
     }
     stat += "])";
     stat_copy += "])";
-    File::ofile << stat << std::endl;
-    File::ofile << stat_copy << std::endl;
+    File::outRelayFile << stat << std::endl;
+    File::outRelayFile << stat_copy << std::endl;
     NODE_PTRs outputs_vec(outputs.size());
     std::copy(outputs.begin(), outputs.end(), outputs_vec.begin());
     if (Custom::feature == "nodf") OutputNode::clear();
@@ -41,8 +41,8 @@ NODE_PTR GNode::tail_tuple_RelayStmt() {
       stat_copy += output->name_();
     }
   }
-  File::ofile << stat << std::endl;
-  File::ofile << stat_copy << std::endl;
+  File::outRelayFile << stat << std::endl;
+  File::outRelayFile << stat_copy << std::endl;
   return *(outputs.begin());
 }
 

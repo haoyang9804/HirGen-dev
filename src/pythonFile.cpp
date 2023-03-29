@@ -18,7 +18,7 @@ bool runPythonFile(const char* filename) {
 }
 
 void initPythonFile() {
-  std::ofstream of(File::pythonFilePath, std::ios::out);
+  std::ofstream of(File::RelayFilePath, std::ios::out);
   of << "";
   of.clear();
 }
@@ -29,15 +29,15 @@ void deletetheLastLineInConsole() {
               << "\x1b[2K";  // Delete the entire line
 }
 
-void re_freopen() { freopen(File::pythonFilePath, "a+", stdout); }
+void re_freopen() { freopen(File::RelayFilePath, "a+", stdout); }
 
 void backToScreen() {  // only support Linux
   freopen("/dev/tty", "a", stdout);
 }
 
 void deleteTailInFile() {
-  std::ifstream in(File::pythonFilePath);
-  std::ofstream out(File::pythonFileCopyPath);
+  std::ifstream in(File::RelayFilePath);
+  std::ofstream out(File::RelayFileCopyPath);
   // some error checking...
   std::string line;
   while (std::getline(in, line)) {
@@ -51,11 +51,11 @@ void deleteTailInFile() {
   out.close();
   using namespace File;
 std:
-  rename(pythonFileCopyPath, pythonFilePath);
-  File::ofile.close();
-  File::ofile.open(pythonFilePath, std::ios::app);
-  File::ifile.close();
-  File::ifile.open(pythonFilePath, std::ios::in);
+  rename(RelayFileCopyPath, RelayFilePath);
+  File::outRelayFile.close();
+  File::outRelayFile.open(RelayFilePath, std::ios::app);
+  File::inRelayFile.close();
+  File::inRelayFile.open(RelayFilePath, std::ios::in);
 }
 
 bool runPythonFileAfterEachRound(const char* filename) {

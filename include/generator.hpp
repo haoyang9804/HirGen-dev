@@ -454,11 +454,11 @@ NODE_PTR funcGenerator::fromFuncToVar(NODE_PTR funcnode) {
   using Accessory::name2mname;
   if (funcnode->isGlobal()) {
     funcCallName = funcnode->name_() + "_call";
-    File::ofile << funcCallName << " = mod.get_global_var(\'" << funcnode->name_() << "\')"
+    File::outRelayFile << funcCallName << " = mod.get_global_var(\'" << funcnode->name_() << "\')"
                 << std::endl;
     if (name2mname.count(funcnode->name_())) {
       mfuncCallName = name2mname[funcnode->name_()] + "_call";
-      File::ofile << mfuncCallName << " = mutated_mod.get_global_var(\'"
+      File::outRelayFile << mfuncCallName << " = mutated_mod.get_global_var(\'"
                   << name2mname[funcnode->name_()] << "\')" << std::endl;
     }
   } else {
@@ -503,20 +503,20 @@ NODE_PTR funcGenerator::fromFuncToVar(NODE_PTR funcnode) {
   }
   auto rvNode_ = funcnode->rvNode_();
   if (rvNode_->isTuple()) {
-    File::ofile << callnode->name_() << " = relay.TupleGetItem(" << funcCallName << "(" << paramsStr
+    File::outRelayFile << callnode->name_() << " = relay.TupleGetItem(" << funcCallName << "(" << paramsStr
                 << "), " << std::to_string(nid) << ")" << std::endl;
     if (mfuncCallName != "") {
       std::string call_str = "call_" + std::to_string(assignID());
-      File::ofile << call_str << " = relay.TupleGetItem(" << mfuncCallName << "(" << paramsStr
+      File::outRelayFile << call_str << " = relay.TupleGetItem(" << mfuncCallName << "(" << paramsStr
                   << "), " << std::to_string(nid) << ")" << std::endl;
       name2mname.insert({callnode->name_(), call_str});
     }
   } else {
-    File::ofile << callnode->name_() << " = " << funcCallName << "(" << paramsStr << ")"
+    File::outRelayFile << callnode->name_() << " = " << funcCallName << "(" << paramsStr << ")"
                 << std::endl;
     if (mfuncCallName != "") {
       std::string call_str = "call_" + std::to_string(assignID());
-      File::ofile << call_str << " = " << funcCallName << "(" << paramsStr << ")" << std::endl;
+      File::outRelayFile << call_str << " = " << funcCallName << "(" << paramsStr << ")" << std::endl;
       name2mname.insert({callnode->name_(), call_str});
     }
   }
@@ -556,10 +556,10 @@ IGenerator* funcGenerator::generate() {
   if (true) {
     funcnode->assign_global(true);
     GlobalFuncPool::insert(funcnode);
-    File::ofile << "mod[\'" << funcnode->name_() << "\'] = " << funcnode->name_() << std::endl;
-    File::ofile << "mod = relay.transform.InferType()(mod)" << std::endl;
+    File::outRelayFile << "mod[\'" << funcnode->name_() << "\'] = " << funcnode->name_() << std::endl;
+    File::outRelayFile << "mod = relay.transform.InferType()(mod)" << std::endl;
     mutateFunc(funcnode);
-    File::ofile << "mutated_mod = relay.transform.InferType()(mutated_mod)" << std::endl;
+    File::outRelayFile << "mutated_mod = relay.transform.InferType()(mutated_mod)" << std::endl;
   } else {
     ASSERT_FALSE("No implementation");
     // funcnode->assign_global(false);
@@ -575,9 +575,9 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
   int seed = rand() % 2;
   using Accessory::name2mname;
   if (seed == 0) {
-    File::ofile << "mutated_mod[\'" << funcnode->name_() << "\'] = " << funcnode->name_()
+    File::outRelayFile << "mutated_mod[\'" << funcnode->name_() << "\'] = " << funcnode->name_()
                 << std::endl;
-    File::ofile << "mutated_mod = relay.transform.InferType()(mutated_mod)" << std::endl;
+    File::outRelayFile << "mutated_mod = relay.transform.InferType()(mutated_mod)" << std::endl;
     // Create the same function as the original one. The new function returns a
     // call the the original function
     /*
@@ -594,35 +594,35 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
     */
     if (funcnode->hasnoparams_()) {
       std::string funcCallName = funcnode->name_() + "_call";
-      File::ofile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
+      File::outRelayFile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
                   << "\')" << std::endl;
       NODE_PTR callnode = std::make_shared<callNode>(assignID(), -1, nullptr, funcnode);
-      File::ofile << callnode->name_() << " = " << funcCallName << "()" << std::endl;
-      File::ofile << "output = " << callnode->name_() << std::endl;
+      File::outRelayFile << callnode->name_() << " = " << funcCallName << "()" << std::endl;
+      File::outRelayFile << "output = " << callnode->name_() << std::endl;
       std::string funcname = "func_" + std::to_string(assignID());
       function_RelayStmt(funcname, "", "output");
       name2mname.insert({funcnode->name_(), funcname});
-      File::ofile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
+      File::outRelayFile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
     } else {
       NODE_PTR paramnode = funcnode->paramNode_();
       if (paramnode->isVar()) {
         NODE_PTR vnode = paramnode->copyNode();
         node_RelayStmt(vnode);
         std::string funcCallName = funcnode->name_() + "_call";
-        File::ofile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
+        File::outRelayFile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
                     << "\')" << std::endl;
         NODE_PTR callnode = std::make_shared<callNode>(assignID(), -1, nullptr, funcnode);
-        File::ofile << callnode->name_() << " = " << funcCallName << "(" << vnode->name_() << ")"
+        File::outRelayFile << callnode->name_() << " = " << funcCallName << "(" << vnode->name_() << ")"
                     << std::endl;
-        File::ofile << "output = " << callnode->name_() << std::endl;
+        File::outRelayFile << "output = " << callnode->name_() << std::endl;
         std::string funcname = "func_" + std::to_string(assignID());
         function_RelayStmt(funcname, vnode->name_(), "output");
         name2mname.insert({funcnode->name_(), funcname});
-        File::ofile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
+        File::outRelayFile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
       } else if (paramnode->isTuple()) {
         std::vector<std::shared_ptr<node>> members = paramnode->members_();
         std::string funcCallName = funcnode->name_() + "_call";
-        File::ofile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
+        File::outRelayFile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
                     << "\')" << std::endl;
         NODE_PTR callnode = std::make_shared<callNode>(assignID(), -1, nullptr, funcnode);
         std::string paramstr = "";
@@ -632,13 +632,13 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
           node_RelayStmt(newmember);
           paramstr += newmember->name_() + ",";
         }
-        File::ofile << callnode->name_() << " = " << funcCallName << "(" << paramstr << ")"
+        File::outRelayFile << callnode->name_() << " = " << funcCallName << "(" << paramstr << ")"
                     << std::endl;
-        File::ofile << "output = " << callnode->name_() << std::endl;
+        File::outRelayFile << "output = " << callnode->name_() << std::endl;
         std::string funcname = "func_" + std::to_string(assignID());
         function_RelayStmt(funcname, paramstr, "output");
         name2mname.insert({funcnode->name_(), funcname});
-        File::ofile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
+        File::outRelayFile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
       } else {
         ASSERT_FALSE("Invalid paramnode type: not varNode or tupleNode");
       }
@@ -659,22 +659,22 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
     }
     */
     if (funcnode->hasnoparams_()) {
-      File::ofile << "output = " << funcnode->name_() << "()" << std::endl;
+      File::outRelayFile << "output = " << funcnode->name_() << "()" << std::endl;
       std::string funcname = "func_" + std::to_string(assignID());
       function_RelayStmt(funcname, "", "output");
       name2mname.insert({funcnode->name_(), funcname});
-      File::ofile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
+      File::outRelayFile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
     } else {
       NODE_PTR paramnode = funcnode->paramNode_();
       if (paramnode->isVar()) {
         NODE_PTR vnode = paramnode->copyNode();
         node_RelayStmt(vnode);
-        File::ofile << "output = " << funcnode->name_() << "(" << vnode->name_() << ")"
+        File::outRelayFile << "output = " << funcnode->name_() << "(" << vnode->name_() << ")"
                     << std::endl;
         std::string funcname = "func_" + std::to_string(assignID());
         function_RelayStmt(funcname, vnode->name_(), "output");
         name2mname.insert({funcnode->name_(), funcname});
-        File::ofile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
+        File::outRelayFile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
       } else if (paramnode->isTuple()) {
         std::vector<std::shared_ptr<node>> members = paramnode->members_();
         std::string paramstr = "";
@@ -684,11 +684,11 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
           node_RelayStmt(newmember);
           paramstr += newmember->name_() + ",";
         }
-        File::ofile << "output = " << funcnode->name_() << "(" << paramstr << ")" << std::endl;
+        File::outRelayFile << "output = " << funcnode->name_() << "(" << paramstr << ")" << std::endl;
         std::string funcname = "func_" + std::to_string(assignID());
         function_RelayStmt(funcname, paramstr, "output");
         name2mname.insert({funcnode->name_(), funcname});
-        File::ofile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
+        File::outRelayFile << "mutated_mod[\'" << funcname << "\'] = " << funcname << std::endl;
       } else {
         ASSERT_FALSE("Invalid paramnode type: not varNode or tupleNode");
       }
@@ -713,7 +713,7 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
     */
     // NODE_PTR newfuncnode = std::make_shared<funcNode>(assignID(), funcnode);
     // function_RelayStmt(funcnode->name_(), "");
-    // File::ofile << "mutated_mod[\'" << newfuncnode->name_() << "\']
+    // File::outRelayFile << "mutated_mod[\'" << newfuncnode->name_() << "\']
     // = " << newfuncnode->name_() << std::endl;
   }
 }

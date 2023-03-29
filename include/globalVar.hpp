@@ -29,10 +29,13 @@ extern const int valueconstBound;
 inline void init_maxlayer() { Bound::maxlayer = 1; }
 
 namespace File {
-extern const char* pythonFilePath;
-extern std::ifstream ifile;
-extern std::ofstream ofile;
-extern const char* pythonFileCopyPath;
+extern const char* RelayFilePath;
+extern const char* RelayFileCopyPath;
+extern const char* ONNXFilePath;
+extern std::ifstream inRelayFile;
+extern std::ofstream outRelayFile;
+extern std::ifstream inONNXFile;
+extern std::ofstream outONNXFile;
 extern const char* loggingFilePath;
 extern std::ofstream ofs;
 extern const char* csvPath;

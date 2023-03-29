@@ -97,8 +97,6 @@
                                                                       isinf)
 
 void node_RelayStmt(NODE_PTR var);
-// void function_RelayStmt(NODE_PTR body, NODE_PTR var);
-
 void add_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
 void subtract_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
 void multiply_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
@@ -123,7 +121,6 @@ void bitwiseXor_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
 void notEqual_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
 void rightShift_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
 void leftShift_RelayStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
-
 void log2_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
 void log10_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
 void fastExp_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
@@ -162,12 +159,80 @@ void sign_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
 void tanh_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
 void negative_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
 void logicalNot_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
-
 void reshape_RelayStmt(NODE_PTR nd, NODE_PTR pnd);
-
 void function_RelayStmt(std::string funcName, std::string inputNamesStr, std::string outputstr);
 
+
+void node_ONNXStmt(NODE_PTR var);
+
+void add_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void subtract_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void multiply_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void divide_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void power_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void mod_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void logicalAnd_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void logicalOr_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void logicalXor_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void equal_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void less_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void lessEqual_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void greater_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void greaterEqual_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void maximum_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void minimum_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void floorDivide_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void floorMod_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void bitwiseAnd_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void bitwiseOr_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void bitwiseXor_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void notEqual_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void rightShift_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+void leftShift_ONNXStmt(NODE_PTR var, NODE_PTR lhs, NODE_PTR rhs);
+
+void log2_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void log10_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void fastExp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void fastErf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void rsqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void trunc_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void fastTanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void bitwiseNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void zerosLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void onesLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void copy_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void isnan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void isfinite_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void isinf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void log_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void tan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void cos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void cosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void sin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void sinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void acos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void acosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void asin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void asinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void atan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void atanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void exp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void erf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void sqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void sigmoid_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void floor_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void ceil_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void round_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void abs_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void sign_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void tanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void negative_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+void logicalNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+
+void reshape_ONNXStmt(NODE_PTR nd, NODE_PTR pnd);
+
 void header_RelayStmt();
+void header_ONNXStmt();
 
 void tail_mod_RelayStmt(std::string inputnames_str);
 void tail_runtime_stmt(std::string modname, int id0, int id1, int id2, int id3,

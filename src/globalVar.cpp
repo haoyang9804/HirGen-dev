@@ -16,10 +16,13 @@ const int valueconstBound = 4;
 }  // namespace Bound
 
 namespace File {
-const char* pythonFilePath = "output.py";
-std::ifstream ifile(pythonFilePath, std::ios::in);
-std::ofstream ofile(pythonFilePath, std::ios::app);
-const char* pythonFileCopyPath = "output_copy.py";
+const char* RelayFilePath = "output_Relay.py";
+const char* ONNXFilePath = "output_ONNX.py";
+std::ifstream inRelayFile(RelayFilePath, std::ios::in);
+std::ofstream outRelayFile(RelayFilePath, std::ios::app);
+std::ifstream inONNXFile(ONNXFilePath, std::ios::in);
+std::ofstream outONNXFile(ONNXFilePath, std::ios::app);
+const char* RelayFileCopyPath = "output_Relay_copy.py";
 const char* loggingFilePath = "log.txt";
 std::ofstream ofs(loggingFilePath, std::ios_base::out);
 const char* csvPath = "cov.csv";
