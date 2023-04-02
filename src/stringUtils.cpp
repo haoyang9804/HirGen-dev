@@ -20,7 +20,7 @@ bool _equalShape(NODE_PTR lhs, NODE_PTR rhs) {
 
 #define binaryOpRelayStmt(bopname)                                                                \
   std::string stat;                                                                               \
-  if (Custom::cLevel == strict) {                                                                    \
+  if (Custom::cLevel == strict) {                                                                 \
     if (lhs->shape_().empty())                                                                    \
       stat = nd->name_() + " = relay." + #bopname + "(" + lhs->name_() + ".astype(\'" +           \
              nd->dataType_() + "\'), " + rhs->name_() + ".astype(\'" + nd->dataType_() + "\'))";  \
@@ -31,21 +31,43 @@ bool _equalShape(NODE_PTR lhs, NODE_PTR rhs) {
     else                                                                                          \
       stat = nd->name_() + " = relay." + #bopname + "(" + lhs->name_() + ".astype(\'" +           \
              nd->dataType_() + "\'), " + rhs->name_() + ".astype(\'" + nd->dataType_() + "\'))";  \
-    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;  \
   } else {                                                                                        \
     stat = nd->name_() + " = relay." + #bopname + "(" + lhs->name_() + ", " + rhs->name_() + ")"; \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;  \
+  }
+
+#define unaryOpRelayStmt(uopname)                                                                  \
+  if (Custom::cLevel == strict) {                                                                  \
+    std::string stat = nd->name_() + " = relay." + #uopname + "(" + pnd->name_() + ".astype(\'" +  \
+                       nd->dataType_() + "\'))";                                                   \
+    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
+  } else {                                                                                         \
+    std::string stat = nd->name_() + " = relay." + #uopname + "(" + pnd->name_() + ")";            \
     outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
   }
 
-#define unaryOpRelayStmt(uopname)                                                                 \
-  if (Custom::cLevel == strict) {                                                                    \
-    std::string stat = nd->name_() + " = relay." + #uopname + "(" + pnd->name_() + ".astype(\'" + \
-                       nd->dataType_() + "\'))";                                                  \
-    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
-  } else {                                                                                        \
-    std::string stat = nd->name_() + " = relay." + #uopname + "(" + pnd->name_() + ")";           \
-    outRelayFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;   \
-  }
+#define unaryOpONNXStmt(uopname)                                                                   \
+  std::string operand = pnd->name_();                                                              \
+  if (Custom::cLevel == strict) {                                                                  \
+     operand = operand + ".astype(\'" +  nd->dataType_() + "\') ";                                 \
+  }                                                                                                \
+  std::string stmt = nd->name_() + " = onnx.helper.make_node(\"" + #uopname + "\", " +             \
+                     "inputs=[\"" + pnd->name_() + "\"], " + "outputs=[\"" + nd->name_() + "\"])"; \
+  outONNXFile << stmt << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;
+
+#define binaryOpONNXStmt(bopname)                                                                  \
+  std::string lhsOperand = lhs->name_();                                                           \
+  std::string rhsOperand = rhs->name_();                                                           \
+  if (Custom::cLevel == strict) {                                                                  \
+    lhsOperand = lhsOperand + ".astype(\'" +  lhs->dataType_() + "\') ";                           \
+    rhsOperand = rhsOperand + ".astype(\'" +  rhs->dataType_() + "\') ";                           \
+  }                                                                                                \
+  std::string stmt = nd->name_() + " = onnx.helper.make_node(\"" + #bopname + "\", " +             \
+                     "inputs=[\"" + lhsOperand + "\", \"" + rhsOperand + "\"], " +                 \
+                     "outputs=[\"" + nd->name_() + "\"])";                                         \
+  outONNXFile << stmt << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;
+
 
 std::string SHAPE_to_string(SHAPE shape, std::string beginstr, std::string endstr) {
   std::string str = beginstr;
@@ -64,7 +86,7 @@ std::string SHAPE_to_string(SHAPE shape, std::string beginstr, std::string endst
 
 void generateStmt(std::string stat, NODE_PTR nd) {
   outRelayFile << stat << " # shape is " << SHAPE_to_string(nd->shape_(), "(", ")")
-              << " # data type is " << nd->dataType_() << std::endl;
+               << " # data type is " << nd->dataType_() << std::endl;
 }
 
 void node_RelayStmt(NODE_PTR nd) {
@@ -142,6 +164,9 @@ void isnan_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(isnan) }
 void isfinite_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(isfinite) }
 void isinf_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(isinf) }
 
+void tan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Tan) }
+void tanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Tanh) }
+
 void log_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(log) }
 void tan_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(tan) }
 void cos_RelayStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpRelayStmt(cos) }
@@ -193,91 +218,81 @@ void node_ONNXStmt(NODE_PTR nd) {
   }
 }
 
-void floorDivide_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(floor_divide)
-}
-void floorMod_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(floor_mod) }
-void bitwiseAnd_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(bitwise_and)
-}
-void bitwiseOr_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(bitwise_or) }
-void bitwiseXor_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(bitwise_xor)
-}
-void notEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(not_equal) }
-void rightShift_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(right_shift)
-}
-void leftShift_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(left_shift) }
-
-void add_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(add) }
-void subtract_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(subtract) }
-void multiply_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(multiply) }
-void divide_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(divide) }
-void power_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(power) }
-void mod_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(mod) }
-void logicalAnd_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(logical_and)
-}
-void logicalOr_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(logical_or) }
-void logicalXor_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(logical_xor)
-}
-void equal_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(equal) }
-void less_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(less) }
-void lessEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(less_equal) }
-void greater_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(greater) }
-void greaterEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
-  binaryOpONNXStmt(greater_equal)
-}
-void maximum_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(maximum) }
-void minimum_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(minimum) }
-
-void log2_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log2) }
-void log10_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log10) }
-void fastExp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_exp) }
-void fastErf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_erf) }
-void rsqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(rsqrt) }
-void trunc_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(trunc) }
-void fastTanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_tanh) }
-void bitwiseNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(bitwise_not) }
-void zerosLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(zeros_like) }
-void onesLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(ones_like) }
-void copy_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(copy) }
-void isnan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isnan) }
-void isfinite_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isfinite) }
+void abs_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Abs) }
+void acos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Acos) }
+void acosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Acosh) }
+void asin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Asin) }
+void asinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Asinh) }
+void atan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Atan) }
+void atanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Atanh) }
+void bitwiseNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(BitwiseNot) }
+void ceil_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Ceil) }
+void cos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Cos) }
+void cosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Cosh) }
+void exp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Exp) }
+void erf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Erf) }
+void floor_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Floor) }
+void isnan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(IsNaN) }
 void isinf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isinf) }
+void log_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Log) }
+void logicalNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Not) }
+void negative_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Neg) }
+void round_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Round) }
+void sin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Sin) }
+void sinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Sinh) }
+void sqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Sqrt) }
+void sigmoid_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Sigmoid) }
+void sign_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(Sign) }
+void subtract_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Sub) }
 
-void log_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log) }
-void tan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(tan) }
-void cos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(cos) }
-void cosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(cosh) }
-void sin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sin) }
-void sinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sinh) }
-void acos_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(acos) }
-void acosh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(acosh) }
-void asin_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(asin) }
-void asinh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(asinh) }
-void atan_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(atan) }
-void atanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(atanh) }
-void exp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(exp) }
-void erf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(erf) }
-void sqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sqrt) }
-void sigmoid_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sigmoid) }
-void floor_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(floor) }
-void ceil_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(ceil) }
-void round_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(round) }
-void abs_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(abs) }
-void sign_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(sign) }
-void tanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(tanh) }
-void negative_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(negative) }
-void logicalNot_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(logical_not) }
+void add_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Add) }
+void bitwiseAnd_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(BitwiseAnd) }
+void bitwiseOr_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(BitwiseOr) }
+void bitwiseXor_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(BitwiseXor) }
+void divide_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Div) }
+void equal_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Equal) }
+void greater_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Greater) }
+void greaterEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+  binaryOpONNXStmt(GreaterOrEqual)
+}
+void logicalAnd_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(And) }
+void logicalOr_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Or) }
+void logicalXor_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Xor) }
+void less_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Less) }
+void lessEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(LessOrEqual) }
+void multiply_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Mul) }
+void mod_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Mod) }
+void maximum_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Max) }
+void minimum_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Min) }
+void power_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(Pow) }
+
 
 void reshape_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) {
   std::string stat = nd->name_() + " = ONNX.reshape(" + pnd->name_() + ".astype(\'" +
                      nd->dataType_() + "\')," + SHAPE_to_string(nd->shape_(), "[", "]") + ")";
   outONNXFile << stat << " # shape=" << SHAPE_to_string(nd->shape_(), "(", ")") << std::endl;
 }
+
+// -- some operators that ONNX doesn't have
+// void log2_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log2) }
+// void log10_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(log10) }
+// void copy_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(copy) }
+// void floorDivide_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) {
+//  binaryOpONNXStmt(floor_divide)
+// }
+// void floorMod_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(floor_mod) }
+// void fastExp_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_exp) }
+// void fastErf_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_erf) }
+// void fastTanh_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(fast_tanh) }
+// void isfinite_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(isfinite) }
+// void rightShift_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(right_shift) }
+// void leftShift_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(left_shift) }
+// void notEqual_ONNXStmt(NODE_PTR nd, NODE_PTR lhs, NODE_PTR rhs) { binaryOpONNXStmt(not_equal) }
+//void zerosLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(zeros_like) }
+//void onesLike_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(ones_like) }
+//void rsqrt_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(rsqrt) }
+//void trunc_ONNXStmt(NODE_PTR nd, NODE_PTR pnd) { unaryOpONNXStmt(trunc) }
+
 
 void header_RelayStmt() {
   outRelayFile << "import tvm" << std::endl;
@@ -326,7 +341,7 @@ void header_ONNXStmt() {
     vmobj_to_list += "        return o\n";
     outONNXFile << vmobj_to_list << std::endl;
     outONNXFile << std::endl;
-  } 
+  }
 }
 
 void tail_mod_RelayStmt(std::string inputnames_str) {
@@ -349,42 +364,42 @@ void tail_mod_RelayStmt(std::string inputnames_str) {
 void tail_runtime_stmt(std::string modname, int id0, int id1, int id2, int id3,
                        std::string target) {
   outRelayFile << "graph, lib, params = relay.build(" << modname << ", target=\'" << target << "\')"
-              << std::endl;
+               << std::endl;
   outRelayFile << "module" << id0 << " = graph_runtime.create(graph, lib, tvm.device(\'" << target
-              << "\',0))" << std::endl;
+               << "\',0))" << std::endl;
 
   outRelayFile << "intrp" << id1 << " = relay.build_module.create_executor(\'graph\', " << modname
-              << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
+               << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
   outRelayFile << "intrp" << id2 << " = relay.build_module.create_executor(\'debug\', " << modname
-              << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
+               << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
   outRelayFile << "intrp" << id3 << " = relay.build_module.create_executor(\'vm\', " << modname
-              << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
+               << ", tvm.device(\'" << target << "\',0),\'" << target << "\')" << std::endl;
 }
 
 void tail_predicateAndOutput_stmt(int id0, int id1, int id2, int id3) {
   size_t outputs_size = OutputNode::size();
   for (size_t i = 0; i < outputs_size; i++) {
     outRelayFile << "res" << id0 << "_" << std::to_string(i) << " = module" << id0 << ".get_output("
-                << std::to_string(i) << ").asnumpy()" << std::endl;
+                 << std::to_string(i) << ").asnumpy()" << std::endl;
     outRelayFile << "res" << id1 << "_" << std::to_string(i) << " = res" << id1 << "["
-                << std::to_string(i) << "].asnumpy()" << std::endl;
+                 << std::to_string(i) << "].asnumpy()" << std::endl;
     outRelayFile << "res" << id2 << "_" << std::to_string(i) << " = res" << id2 << "["
-                << std::to_string(i) << "].asnumpy()" << std::endl;
+                 << std::to_string(i) << "].asnumpy()" << std::endl;
     outRelayFile << "res" << id3 << "_" << std::to_string(i) << " = res" << id3 << "["
-                << std::to_string(i) << "].asnumpy()" << std::endl;
+                 << std::to_string(i) << "].asnumpy()" << std::endl;
 
     outRelayFile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
-                << id1 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
+                 << id1 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
     outRelayFile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
-                << id2 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
+                 << id2 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
     outRelayFile << "np.testing.assert_allclose(res" << id0 << "_" << std::to_string(i) << " ,res"
-                << id3 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
+                 << id3 << "_" << std::to_string(i) << ", atol=1e-3, rtol=1e-3)" << std::endl;
     outRelayFile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id1 << "_"
-                << std::to_string(i) << ").all()" << std::endl;
+                 << std::to_string(i) << ").all()" << std::endl;
     outRelayFile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id2 << "_"
-                << std::to_string(i) << ").all()" << std::endl;
+                 << std::to_string(i) << ").all()" << std::endl;
     outRelayFile << "(res" << id0 << "_" << std::to_string(i) << " == res" << id3 << "_"
-                << std::to_string(i) << ").all()" << std::endl;
+                 << std::to_string(i) << ").all()" << std::endl;
   }
 }
 
@@ -439,10 +454,10 @@ void tail_createOutputAndLoad_stmt(int id0, int id1, int id2, int id3, bool inpu
       std::string&& value = generateValues(
           input_shape, 0, static_cast<int>(input_t->shape_().size()), input_t->dataType_());
       outRelayFile << "input_" << input_t->ID_() << "= np.array(" << value << ", dtype='"
-                  << input_t->dataType_() << "')" << std::endl;
+                   << input_t->dataType_() << "')" << std::endl;
     }
     outRelayFile << "module" << id0 << ".set_input(\'" << input_t->name_() << "\', input_"
-                << input_t->ID_() << ")" << std::endl;
+                 << input_t->ID_() << ")" << std::endl;
     inputnames_str += "input_" + std::to_string(input_t->ID_()) + ", ";
   }
 
@@ -450,11 +465,11 @@ void tail_createOutputAndLoad_stmt(int id0, int id1, int id2, int id3, bool inpu
   outRelayFile << "module" << id0 << ".run()" << std::endl;
   // create_executor : load inputs
   outRelayFile << "res" << id1 << " = intrp" << id1 << ".evaluate()(" << inputnames_str << ")"
-              << std::endl;
+               << std::endl;
   outRelayFile << "res" << id2 << " = intrp" << id2 << ".evaluate()(" << inputnames_str << ")"
-              << std::endl;
+               << std::endl;
   outRelayFile << "res" << id3 << " = intrp" << id3 << ".evaluate()(" << inputnames_str << ")"
-              << std::endl;
+               << std::endl;
 
   outRelayFile << "res" << id1 << " = vmobj_to_list(res" << id1 << ")" << std::endl;
   outRelayFile << "res" << id2 << " = vmobj_to_list(res" << id2 << ")" << std::endl;
@@ -463,7 +478,7 @@ void tail_createOutputAndLoad_stmt(int id0, int id1, int id2, int id3, bool inpu
 
 void function_RelayStmt(std::string funcName, std::string inputNamesStr, std::string outputstr) {
   outRelayFile << funcName + " = relay.Function([" + inputNamesStr + "], " << outputstr << ")"
-              << std::endl;
+               << std::endl;
 }
 
 std::vector<std::string> splitString(std::string str, std::string delimeter) {
