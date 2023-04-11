@@ -12,7 +12,7 @@
 #include <stdlib.h>
 
 int main(int argc, char* argv[]) {
-  ASSERT(argc <= 6, "More than 5 arguments, illegal!");
+  ASSERT(argc <= 7, "More than 6 arguments, illegal!");
   std::string argv_strs[argc];
   for (int i = 1; i < argc; i++) {
     argv_strs[i] = std::string(argv[i]);
@@ -40,10 +40,23 @@ int main(int argc, char* argv[]) {
       else if (paramBody == "no") Custom::coverage = false;
       else ASSERT_FALSE("Illegal paramBody for -coverage: " + paramBody);
     }
+    else if (paramName == "-framework") {
+      if (paramBody == "ONNX") Custom::framework = "ONNX";
+      else if (paramBody == "Relay") Custom::framework = "Relay";
+      else ASSERT_FALSE("Illegal paramBody for -framework: " + paramBody);
+    }
     else {
       ASSERT_FALSE("Unrecognizable parameter: " + paramName);
     }
   }
+
+  // Currently, if the framework is ONNX, we don't have IR mutation, disruptive generation and differential testing
+  if (Custom::framework == "ONNX") {
+    Custom::runtimeMode = "release";
+    Custom::feature = "nodf";
+    Custom::cLevel = strict;
+  }
+
   ASSERT(!(Custom::feature != "nodf" && Custom::feature != "df"),
          "Invalid Custom::feature: " + Custom::feature);
   ASSERT(!(Custom::runtimeMode != "release" && Custom::runtimeMode != "debug"),

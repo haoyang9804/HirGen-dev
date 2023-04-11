@@ -54,6 +54,7 @@ extern std::string runtimeMode;
 extern std::string feature;
 extern checking_level cLevel;
 extern bool coverage;
+extern std::string framework;
 }  // namespace Custom
 
 namespace Accessory {

@@ -36,6 +36,7 @@ std::string runtimeMode = "release";
 std::string feature = "nodf";
 checking_level cLevel = strict;
 bool coverage = true;
+std::string framework = "Relay";
 }  // namespace Custom
 
 namespace Accessory {

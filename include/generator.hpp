@@ -202,6 +202,7 @@ void IGenerator::VarConstUpdate(NODE_PTR nd) {
   Constraint::createTensorShapeRelation(nd);
   NodePool::insert(nd);
   node_RelayStmt(nd);
+  node_ONNXStmt(nd);
 }
 
 /*==============================uopGenerator==============================*/
@@ -608,6 +609,7 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
       if (paramnode->isVar()) {
         NODE_PTR vnode = paramnode->copyNode();
         node_RelayStmt(vnode);
+        node_ONNXStmt(vnode);
         std::string funcCallName = funcnode->name_() + "_call";
         File::outRelayFile << funcCallName << " = mutated_mod.get_global_var(\'" << funcnode->name_()
                     << "\')" << std::endl;
@@ -630,6 +632,7 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
           ASSERT(member->isVar(), "The member " + member->name_() + " is not a varNode");
           NODE_PTR newmember = member->copyNode();
           node_RelayStmt(newmember);
+          node_ONNXStmt(newmember);
           paramstr += newmember->name_() + ",";
         }
         File::outRelayFile << callnode->name_() << " = " << funcCallName << "(" << paramstr << ")"
@@ -669,6 +672,7 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
       if (paramnode->isVar()) {
         NODE_PTR vnode = paramnode->copyNode();
         node_RelayStmt(vnode);
+        node_ONNXStmt(vnode);
         File::outRelayFile << "output = " << funcnode->name_() << "(" << vnode->name_() << ")"
                     << std::endl;
         std::string funcname = "func_" + std::to_string(assignID());
@@ -682,6 +686,7 @@ void funcGenerator::mutateFunc(NODE_PTR funcnode) {
           ASSERT(member->isVar(), "The member " + member->name_() + " is not a varNode");
           NODE_PTR newmember = member->copyNode();
           node_RelayStmt(newmember);
+          node_ONNXStmt(newmember);
           paramstr += newmember->name_() + ",";
         }
         File::outRelayFile << "output = " << funcnode->name_() << "(" << paramstr << ")" << std::endl;
